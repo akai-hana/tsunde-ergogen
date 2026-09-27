@@ -1,0 +1,20 @@
+# ergogen output
+out/
+*.dxf
+*.jscad
+*.svg
+*.zip
+
+# node
+node_modules/
+
+# agent tooling
+.opencode/
+
+# editors
+*.swp
+*.swo
+.*.sw?
+*~
+.DS_Store
+docs/_tmp*

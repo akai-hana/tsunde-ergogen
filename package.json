@@ -1,0 +1,16 @@
+{
+  "name": "tsunde",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Chocofi-derived 36-key ergo-split keyboard layout, using Choc v2 low-profile switches",
+  "license": "MIT",
+  "scripts": {
+    "render": "node render.js",
+    "preview": "node preview.js"
+  },
+  "dependencies": {
+    "@jscad/csg": "0.7.0",
+    "@jscad/stl-serializer": "0.1.3",
+    "ergogen": "4.2.1"
+  }
+}

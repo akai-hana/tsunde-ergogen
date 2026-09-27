@@ -1,0 +1,11 @@
+{
+    "keyboard_name": "tsunde",
+    "url": "https://github.com/akai-hana/ergogen-tsunde",
+    "maintainer": "github.com/akai-hana",
+    "layouts": {
+        "LAYOUT": {
+            "layout": "LAYOUT",
+            "key_count": 21
+        }
+    }
+}

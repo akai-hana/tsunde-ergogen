@@ -1,0 +1,536 @@
+# tsunde 「つなで」 - a Chocofi-shaped 42-key split, re-fitted to one hand.
+#
+# 6x3 keys plus 3 thumbs per half, Kailh Choc v2 (PG1353) low-profile switches.
+# The column arc is the point: every column drops from the middle by however
+# much shorter its finger is, so the fingertips land on one curve. Edit the
+# finger lengths to fit another hand.
+#
+# One socketed Pico per half drives 21 direct-pin keys; the halves are joined
+# by a USB-C cable carrying a UART link on D+/D- (an RP2040 cannot act as a
+# practical USB host, so this is a serial link, not a USB one).
+
+meta:
+  name: tsunde
+  author: github.com/akai-hana, akai_hana on discord
+  description: >-
+    Chocofi-derived 42-key split layout;
+    column arc derived from finger measurements.
+
+units:
+
+  # switch pitch. Choc v2 (PG1353) sits on standard MX pitch, 19.05mm both ways,
+  # and takes MX low-profile caps. Choc v1 (PG1350) is 18x17mm instead, but a
+  # board is never lcm(19.05, 18) = 2286mm wide, so a grid is one or the other.
+  cx: 19.05
+  cy: 19.05
+  # 13.95mm square: the clip-in cutout sized for the plate. 13.8 is the v1
+  # figure, 14 the full-MX one; 0.015 tighter than v1 because the v2 housing
+  # grew slightly to clear an MX stem.
+  cutout: 13.95
+
+  # ergogen assumes MX (19mm) by default; these keep the key wells sized to the
+  # pitch above rather than ergogen's built-in assumption
+  $default_spread: cx
+  $default_padding: cy
+  $default_width: 'cx - 1'
+  $default_height: 'cy - 1'
+
+  # finger lengths: knuckle crease to fingertip, hand flat on a table. A longer
+  # value drops that column further down the arc.
+  f_middle: 115
+  f_ring: 102.5
+  f_index: 102.5
+  f_pinky: 90
+  f_pinky_outer: 90   # 6th, outer-pinky column. Set equal to f_pinky to keep it
+                      # level with the pinky, raise to drop it lower, lower to
+                      # lift it up. See col_pinky_outer for why tuning it moves
+                      # only this column.
+  f_index_outer: 98   # 5th, inboard-of-index. 98 puts it 4.5mm inside the index
+                      # (which sits at 12.5mm here) and 4.5mm below it, which is
+                      # where this column sat before it had its own length.
+                      # Chocofi instead drops its 5th column 2.4mm below the
+                      # index, but that was measured on Choc v1's 18mm pitch, so
+                      # it does not carry over to MX pitch.
+
+  # each column's drop below the middle, in mm
+  col_middle: 'f_middle - f_pinky'
+  col_ring: 'f_ring - f_pinky'
+  col_index: 'f_index - f_pinky'
+  col_pinky: 0.5  # the one break from the arc: the pinky lifted on its own.
+                  # set to 0 for the pure fingertip curve.
+  col_index_outer: 'f_index_outer - f_pinky'  # the 5th column is a spare
+                  # alongside the index rather than a 5th finger, so it gets its
+                  # own length to tune rather than borrowing the index's.
+  col_pinky_outer: 'f_pinky_outer - f_pinky'  # the 6th column sits outside the
+                  # pinky; 0 keeps it level with the pinky. Its stagger below
+                  # moves ONLY this column, so the pinky, the rest of the
+                  # keywell, and the thumb cluster hanging off the pinky all
+                  # stay put.
+
+  # thumb cluster, from the bottom key of the pinky column - the keywell's
+  # lowest point, and so the edge the thumbs have to clear. Chocofi's numbers,
+  # measured from the pinky key rather than the column pitch, so MX pitch moves
+  # the keys around them without invalidating the offsets. Check them against
+  # your own hand.
+  thumb1_x: 48.10
+  thumb1_y: -8.59
+  thumb1_r: 180
+  thumb2_x: 68.15
+  thumb2_y: -11.18
+  thumb2_r: 165
+  thumb3_x: 88.75
+  thumb3_y: -14.39
+  thumb3_r: -120
+
+  # left middle column to the mirror axis, so the two middles end up 2x this
+  # apart. 74 puts the inner thumb keys ~42mm apart.
+  half_gap: 74
+
+  # material left around the outside of the key field
+  plate_margin: 3
+
+  # case shell. Choc v2 is plate-mount and sits a little taller than v1, so the
+  # tray is deeper than a v1 build would need - but the separate plate is what
+  # actually holds the switches now. A v1 build could go plateless; this cannot.
+  floor: 1.6
+  wall: 3
+  case_h: 13
+
+  # ---- controller bay ----
+  # A strip inboard of the index_outer column holding the Pico and the inter-half
+  # USB-C link. Absolute plate coordinates, so every number can be read off
+  # directly. bay_x is flush with the index_outer column's right edge
+  # (2 * cx + cx / 2): ergogen only unions *touching* rects, and the 21mm-wide
+  # module has no room to overlap a switch, so a shared edge is what keeps the
+  # bay and the key field one closed loop.
+  bay_w: 21                 # the Pico module's width
+  bay_h: 61                 # the Pico standing on end, plus the usbc's foot below
+  bay_x: '2.5 * cx'         # the index_outer column's right edge
+  bay_y: -11                # the bay's bottom edge
+  bay_x1: 'bay_x + bay_w'   # the inboard wall, facing the other half
+  bay_y1: 'bay_y + bay_h'
+  bay_cx: 'bay_x + bay_w / 2'
+  bay_cy: 'bay_y + bay_h / 2'
+
+  # The bay's anchor is the keywell's pinky_outer_home key, in absolute
+  # coordinates, so every shift below is simply (target - here). cy is added
+  # because the keywell's own anchor omits the unit spread.
+  anchor_x: '-3 * cx'
+  anchor_y: '-col_middle + col_pinky + col_pinky_outer + cy'
+
+  # components, placed against the bay's edges
+  pico_len: 51              # the Pico's long edge, standing vertical
+  pico_x: 'bay_cx'          # centred in the bay
+  pico_y: 'bay_y1 - pico_len / 2'   # USB end flush with the bay's top wall
+  usbc_w: 7.3               # the receptacle's depth, once rotated 90 deg
+  usbc_h: 8.94              # its width, once rotated
+  usbc_x: 'bay_x1 - usbc_w / 2'     # mouth exactly on the inboard wall
+  usbc_y: 'bay_y + 5'       # in the foot below the Pico
+
+  # wall openings, cut from the tray walls in the case model only. Named here
+  # rather than inlined so a socket that moves moves its hole with it.
+  port_pico_x: 'pico_x'     # the micro-USB slot, through the top wall
+  port_pico_y: 'bay_y1 + wall / 2'  # centred on the wall's thickness
+  port_usbc_x: 'bay_x1'     # the link slot, through the inboard wall
+  port_usbc_y: 'usbc_y'
+points:
+
+  # every switch is tagged so the outlines below can grab all of them at once
+  key.tags:
+    - key
+
+  mirror:
+    shift: [half_gap, 0]
+
+  zones:
+
+    # 6 columns x 3 rows. The anchor lands the middle column's bottom key on the
+    # origin, so the thumb offsets read as plain distances.
+    #
+    # stagger is cumulative, so each column states its step from the one before
+    # it - hence differences of col_* rather than col_* itself. The zone sits one
+    # pitch further left (-3*cx) to make room for pinky_outer, and the y anchor
+    # carries +col_pinky +col_pinky_outer to absorb its stagger. Both extra
+    # columns are written so tuning one moves only that column: pinky_outer's
+    # stagger is 0 and pinky's is -col_pinky_outer, so raising col_pinky_outer
+    # lowers ONLY pinky_outer, leaving the pinky and its thumbs put.
+    keywell:
+      anchor.shift: [-3 * cx, '-col_middle + col_pinky + col_pinky_outer']
+      columns:
+        pinky_outer:
+          key.stagger: 0
+        pinky:
+          key.stagger: '-col_pinky_outer'
+        ring:
+          key.stagger: 'col_ring - col_pinky'
+        middle:
+          key.stagger: 'col_middle - col_ring'
+        index:
+          key.stagger: 'col_index - col_middle'
+        index_outer:
+          key.stagger: 'col_index_outer - col_index'
+      rows:
+        bottom:
+        home:
+        top:
+
+    # 3 thumbs, hanging off the pinky column. Anchored at zone level because a
+    # key-level `adjust` can't `ref` a point in another zone. The shifts are
+    # already absolute from the anchor, so the default column spread must not be
+    # added on top of them.
+    thumbs:
+      anchor:
+        - ref: keywell_pinky_bottom
+      key:
+        spread: 0
+      columns:
+        t1:
+          key:
+            shift: [thumb1_x, thumb1_y]
+            rotate: thumb1_r
+        t2:
+          key:
+            shift: [thumb2_x, thumb2_y]
+            rotate: thumb2_r
+        t3:
+          key:
+            shift: [thumb3_x, thumb3_y]
+            rotate: thumb3_r
+      rows:
+        home:
+
+outlines:
+
+  # Nothing manufactured may span both halves: one outline over every key would
+  # be a single rigid slab locking the middle columns 2 * half_gap apart, which
+  # loses the separation, tenting and splay that make a split worth building. So
+  # every part comes in a left and a right flavour, split on the `mirror_`
+  # prefix the mirror puts on each copy. The `~` operator needs spaces around it.
+  #
+  # A note that applies to the port openings below: the mirror negates x but not
+  # y, and this point's y-shift resolves with a sign flip, so both halves reuse
+  # the SAME shift numbers.
+
+  # each half's key field: one cx x cy cell per key, merged. Deliberately NOT
+  # `bound`, whose autobind grows each key toward its staggered neighbours and
+  # so bulges the edge through the middle of the shorter keys; the bare union
+  # steps only at column boundaries, hugging the outside of every key.
+  _keys_l:
+    - what: rectangle
+      where: 'meta.name ~ -/^mirror_/'
+      size: [cx, cy]
+
+  _keys_r:
+    - what: rectangle
+      where: 'meta.name ~ /^mirror_/'
+      size: [cx, cy]
+
+  # the square hole each Choc v2 switch clips into
+  _cutouts_l:
+    - what: rectangle
+      where: 'meta.name ~ -/^mirror_/'
+      size: cutout
+      operation: stack
+
+  _cutouts_r:
+    - what: rectangle
+      where: 'meta.name ~ /^mirror_/'
+      size: cutout
+      operation: stack
+
+  # ---- controller-bay port openings (tray walls only, not the plate) -------
+  # Two openings, one per port, both cut from the tray walls in the case model
+  # only. Anchored to the SAME pinky_outer_home point as the bay components, so
+  # a socket that moves moves its hole with it.
+  #
+  # _port_pico_*: slot through the TOP wall at the Pico's micro-USB. The Pico
+  # stands on end, so its short (USB) edge is level with the bay top and the
+  # connector sits right in that wall. The slot crosses the full wall thickness.
+  _port_pico_l:
+    - what: rectangle
+      where: 'meta.name ~ /^keywell_pinky_outer_home$/'
+      size: [9.5, 6]
+      adjust: {shift: ['port_pico_x - anchor_x', 'port_pico_y - anchor_y']}
+  _port_pico_r:
+    - what: rectangle
+      where: 'meta.name ~ /^mirror_keywell_pinky_outer_home$/'
+      size: [9.5, 6]
+      adjust: {shift: ['port_pico_x - anchor_x', 'port_pico_y - anchor_y']}
+  # _port_usbc_*: slot through the INBOARD (+x) wall at the USB-C link. The
+  # receptacle is rotated 90 deg so its mouth opens off the inboard side, which
+  # is the way the Piantor Pro puts its split jack - on the facing wall between
+  # the two halves. The slot reaches from just inside the wall out past the blank
+  # edge, and is as tall as the rotated receptacle is wide (8.94mm) plus a little
+  # clearance.
+  _port_usbc_l:
+    - what: rectangle
+      where: 'meta.name ~ /^keywell_pinky_outer_home$/'
+      size: [10, 11]
+      adjust: {shift: ['port_usbc_x - anchor_x', 'port_usbc_y - anchor_y']}
+  _port_usbc_r:
+    - what: rectangle
+      where: 'meta.name ~ /^mirror_keywell_pinky_outer_home$/'
+      size: [10, 11]
+      adjust: {shift: ['port_usbc_x - anchor_x', 'port_usbc_y - anchor_y']}
+
+  # The CASE + PCB field: the key field AND the controller bay, which touch at
+  # bay_x. The usbc needs no rect of its own here - it sits inside the bay, so
+  # adding its bounding box would union to the same shape.
+  #
+  # The bay is 61 tall, not the Pico's 51, so the usbc drops into its foot with
+  # its mouth facing +x, out the inboard wall toward the other half. That pocket
+  # is 16.5mm clear, so the bay widens the case by 5mm on the inboard side,
+  # where the old outboard tab cost 21mm.
+  _field_l:
+    - what: rectangle
+      where: 'meta.name ~ -/^mirror_/'
+      size: [cx, cy]
+    - what: rectangle
+      where: 'meta.name ~ /^keywell_pinky_outer_home$/'
+      size: [bay_w, bay_h]
+      adjust: {shift: ['bay_cx - anchor_x', 'bay_cy - anchor_y']}
+
+  _field_r:
+    - what: rectangle
+      where: 'meta.name ~ /^mirror_/'
+      size: [cx, cy]
+    - what: rectangle
+      where: 'meta.name ~ /^mirror_keywell_pinky_outer_home$/'
+      size: [bay_w, bay_h]
+      adjust: {shift: ['bay_cx - anchor_x', 'bay_cy - anchor_y']}
+
+  # plate boundary before any holes - the KEY FIELD ONLY, so the plate is a lid
+  # over the switches and leaves the controller bay open (a socketed Pico is
+  # taller than the plate stack; nothing may be capped over it). Kept apart from
+  # plate_* because eroding a shape that already has 18 holes upsets makerjs -
+  # inset the blank instead.
+  _plateblank_l:
+    - what: outline
+      name: _keys_l
+      expand: 'plate_margin)'
+
+  _plateblank_r:
+    - what: outline
+      name: _keys_r
+      expand: 'plate_margin)'
+
+  # case + pcb boundary before any holes - key field AND bays
+  _blank_l:
+    - what: outline
+      name: _field_l
+      expand: 'plate_margin)'
+
+  _blank_r:
+    - what: outline
+      name: _field_r
+      expand: 'plate_margin)'
+
+  # switch plate
+  plate_l:
+    - _plateblank_l
+    - what: outline
+      name: _cutouts_l
+      operation: subtract
+
+  plate_r:
+    - _plateblank_r
+    - what: outline
+      name: _cutouts_r
+      operation: subtract
+
+  # pcb edge: the key field AND the bays, so the carrier PCB runs out under the
+  # controller. This is the part the switches and both sockets land on.
+  pcbedge_l:
+    - _blank_l
+
+  pcbedge_r:
+    - _blank_r
+
+  # the void the switches and PCB live in: the blank pulled in by one wall, so
+  # subtracting it leaves a floor and side walls
+  _cavity_l:
+    - what: outline
+      name: _blank_l
+      expand: '-wall)'
+
+  _cavity_r:
+    - what: outline
+      name: _blank_r
+      expand: '-wall)'
+
+  # 2D reference only, both halves at the mirror spacing, and the key field
+  # without the plate outline around it so the board edge doesn't read as a
+  # second layer inside the one you actually build. Not a manufactured part.
+  preview:
+    - _keys_l
+    - _keys_r
+    - ^_cutouts_l
+    - ^_cutouts_r
+
+cases:
+
+  # two independent trays, one per half, emitted at their mirrored positions.
+  # move them together in CAD before printing.
+  case_l:
+    - what: outline
+      name: _blank_l
+      extrude: case_h
+    - what: outline
+      name: _cavity_l
+      extrude: 'case_h - floor'
+      shift: [0, 0, floor]
+      operation: subtract
+    - what: outline
+      name: _cutouts_l
+      extrude: 'floor + 1'
+      operation: subtract
+    # controller-bay ports: side + top wall openings, starting just above the
+    # floor so the tray floor stays solid under the sockets
+    - what: outline
+      name: _port_pico_l
+      extrude: 5
+      shift: [0, 0, floor]
+      operation: subtract
+    - what: outline
+      name: _port_usbc_l
+      extrude: 5
+      shift: [0, 0, floor]
+      operation: subtract
+
+  case_r:
+    - what: outline
+      name: _blank_r
+      extrude: case_h
+    - what: outline
+      name: _cavity_r
+      extrude: 'case_h - floor'
+      shift: [0, 0, floor]
+      operation: subtract
+    - what: outline
+      name: _cutouts_r
+      extrude: 'floor + 1'
+      operation: subtract
+    - what: outline
+      name: _port_pico_r
+      extrude: 5
+      shift: [0, 0, floor]
+      operation: subtract
+    - what: outline
+      name: _port_usbc_r
+      extrude: 5
+      shift: [0, 0, floor]
+      operation: subtract
+
+pcbs:
+
+  # Two PCBs, one per half, mirroring the plates: the halves are already built as
+  # independent parts, and a direct-pin half needs its own MCU anyway.
+  #
+  # NO MATRIX AND NO DIODES. Every switch gets its own net and the other leg
+  # goes to GND, instead of sharing row/column buses. Nothing to ghost, and
+  # nothing to polarity-check while soldering - the cost is 21 GPIOs per half, so
+  # this wants an RP2040-class MCU, not an ATmega32u4 Pro Micro.
+  #
+  # QMK side: one pin per net name below, driven matrixless (see keyboards/tsunde).
+  #
+  # Not included: the ground pour and any trace routing. ergogen places footprints
+  # and board outlines, it does not route. Add the ground zone in CAD.
+
+  pcb_l:
+    template: kicad8
+    outlines:
+      plate: {outline: pcbedge_l}
+    footprints:
+      pico:
+        # Socketed Raspberry Pi Pico on a carrier, standing on end in the
+        # inboard strip above thumbs_t3, the way a Piantor Pro carries its
+        # controller. Its own USB (the host port) is on the module's top edge
+        # and overhangs the board, so the case needs a notch there - see README.
+        what: pico
+        where: 'meta.name ~ /^keywell_pinky_outer_home$/'
+        adjust: {shift: ['pico_x - anchor_x', 'pico_y - anchor_y']}
+        params: &pico_pins
+          # 21 keys + these 2 serial lines = 23 of the 26 header GPIOs.
+          # GP0/GP1 are the hardware UART (TX/RX) carrying the split link.
+          GP0: SERIAL_TX
+          GP1: SERIAL_RX
+          # key columns: bottom / home / top
+          GP2: keywell_pinky_outer_bottom
+          GP3: keywell_pinky_outer_home
+          GP4: keywell_pinky_outer_top
+          GP5: keywell_pinky_bottom
+          GP6: keywell_pinky_home
+          GP7: keywell_pinky_top
+          GP8: keywell_ring_bottom
+          GP9: keywell_ring_home
+          GP10: keywell_ring_top
+          GP11: keywell_middle_bottom
+          GP12: keywell_middle_home
+          GP13: keywell_middle_top
+          GP14: keywell_index_bottom
+          GP15: keywell_index_home
+          GP16: keywell_index_top
+          GP17: keywell_index_outer_bottom
+          GP18: keywell_index_outer_home
+          GP19: keywell_index_outer_top
+          # thumbs
+          GP20: thumbs_t1_home
+          GP21: thumbs_t2_home
+          GP22: thumbs_t3_home
+          # GP26-GP28 stay at their default (own net names, unused spares)
+      usbc:
+        # Inter-half link: a plain USB-C cable carries the serial TX/RX between
+        # halves on the D+/D- pins, plus 5V from the host side. Not raw USB
+        # protocol - a Pico has no USB host mode. The right half swaps D+/D- so
+        # the cable's like-for-like pins land TX->RX (see pcb_r).
+        what: usb_c
+        where: 'meta.name ~ /^keywell_pinky_outer_home$/'
+        adjust: {shift: ['usbc_x - anchor_x', 'usbc_y - anchor_y'], rotate: 90}
+        params:
+          DP: SERIAL_TX
+          DN: SERIAL_RX
+      switches:
+        # `choc_v2` is not an ergogen built-in; render.js injects it from
+        # footprints/choc_v2.js. It is ergogen's own `choc` footprint with the
+        # centre post opened from 3.429mm to 5mm for the v2 stem. Render with
+        # `npm run render`, not `npx ergogen`, or this will not resolve.
+        what: choc_v2
+        where: 'meta.name ~ -/^mirror_/'
+        params:
+          hotswap: true
+          from: GND
+          # zone/col/row survive mirroring unchanged, so both halves get the
+          # same net names and can share one QMK keymap. `name` would not - it
+          # carries the `mirror_` prefix on the right.
+          to: '{{zone.name}}_{{col.name}}_{{row}}'
+
+  pcb_r:
+    template: kicad8
+    outlines:
+      plate: {outline: pcbedge_r}
+    footprints:
+      pico:
+        what: pico
+        where: 'meta.name ~ /^mirror_keywell_pinky_outer_home$/'
+        adjust: {shift: ['pico_x - anchor_x', 'pico_y - anchor_y']}
+        # Same pin map as the left half, verbatim: the halves are the same
+        # electrical board, so there is nothing to differ. Anchored so the two
+        # cannot drift apart.
+        params:
+          <<: *pico_pins
+      usbc:
+        # D+/D- swapped vs the left half so the cable's like-for-like pins
+        # cross TX->RX instead of tying the two transmitters together.
+        what: usb_c
+        where: 'meta.name ~ /^mirror_keywell_pinky_outer_home$/'
+        adjust: {shift: ['usbc_x - anchor_x', 'usbc_y - anchor_y'], rotate: 90}
+        params:
+          DP: SERIAL_RX
+          DN: SERIAL_TX
+      switches:
+        what: choc_v2
+        where: 'meta.name ~ /^mirror_/'
+        params:
+          hotswap: true
+          from: GND
+          to: '{{zone.name}}_{{col.name}}_{{row}}'
